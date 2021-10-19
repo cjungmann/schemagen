@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+
+get_credentials()
+{
+    local -n loc_UNAME="$1"
+    local -n loc_PWORD="$2"
+    local pwcopy
+
+    # Use prompt variables to access length for cursor reposition:
+    local pwprompt1="Enter a password: "
+    local pwprompt2="Renter the password: "
+
+    echo -n "Enter a username: "
+    read loc_UNAME
+
+    while true; do
+        echo -n "${pwprompt1}"
+        read loc_PWORD
+        echo -n "[1F[${#pwprompt1}C"
+        echo "${loc_PWORD//?/-}"
+        
+        echo -n "${pwprompt2}"
+        read pwcopy
+        echo -n "[1F[${#pwprompt2}C"
+        echo "${pwcopy//?/-}"
+        
+        if [ "$pwcopy" == "$loc_PWORD" ]; then
+            return 0
+        else
+            loc_PWORD=
+            pwcopy=
+            echo "Passwords mismatch; try again."
+        fi
+    done
+
+    return 1
+}
+
+setup()
+{
+    local username
+    local userpassword
+
+    local host=192.168.0.20
+    local database="run_test"
+
+    local -a m_args=()
+
+    # Call the function with the _names_ of the current-scope's variables
+    # in order that the function can return the user-entered values therein:
+    if get_credentials "username" "userpassword"; then
+        m_args=(
+            -h "${host}"
+            -u"${username}"
+        )
+
+        # Password might be null
+        if [ "${userpassword}" ]; then
+            m_args+=( -p"${userpassword}" )
+        fi
+
+        echo "Using credentials: ${m_args[@]}"
+        
+        mysql "${m_args[@]}" -e "CREATE DATABASE ${database}"
+        if [ $? -eq 0 ]; then
+            echo "Yay, made a connection and a database."
+            m_args+=( -D"${database}" )
+            mysql "${m_args[@]}" < test_contents.sql
+            if [ $? -eq 0 ]; then
+                echo "Database and contents ready for use."
+                return 0
+            else
+                echo "Failed to complete the test_contents.sql script."
+                mysql "${m_args[@]}" -e "DROP DATABASE ${database}"
+                echo "[32;1mDropped the faulty database.[m"
+            fi
+        else
+            echo "Failed to create database 'run_test'."
+        fi
+        
+    else
+        echo "Failed to get username and password."
+    fi
+
+    return 1
+}
+
+
+##############
+##   Main   ##
+##############
+
+if setup; then
+    echo "Doin' it now."
+fi
+
+
+

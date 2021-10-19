@@ -1,0 +1,278 @@
+#!/usr/bin/env python
+
+import sys
+
+import pymysql
+import pymysql.cursors
+
+# Global dictionary with some default values that stores command line options.
+arg_dict = {
+    "host_name": "192.168.0.20",
+    "user_name": "chuck",
+    "user_password": None,
+    "database_name": None,
+    "table_name": None,
+}
+
+# Dictionary to connect command line flags to arg_dict keys
+label_dict = {
+    "H": "host_name",
+    "u": "user_name",
+    "p": "user_password",
+    "d": "database_name",
+    "t": "table_name"
+}
+
+actions_dict = {
+    "h": "show_usage",
+}
+
+options_dict = {
+    "h": "show usage (help)",
+    "u": "mysql user name",
+    "p": "mysql user password",
+    "H": "mysql host name",
+    "d": "mysql database name",
+    "t": "mysql table name"
+}
+
+def show_usage():
+    global options_dict
+    print("The available options are:")
+    for key, value in options_dict.items():
+          print(f"{key}:  {value}")
+
+def key_from_value(dict, value):
+    """ Returns first dictionary item whose value matches 'value'
+    Args:
+       dict (dictionary): Dictionary to be searched
+       value (string):    Value to be matched to a dictionary element
+
+    Returns:
+       key value for matching item, None if not found
+       desired item, or None if not found
+    """
+    for item in dict.items():
+        if (item[1] == value):
+            return item[0]
+
+    return None
+    
+
+def set_arg_dict(flag, value):
+    """ Sets a dictionary value with command line options flags.
+    Args:
+       None
+
+    Returns:
+      None
+    """
+    global label_dict, arg_dict
+    if (flag in label_dict):
+        arg_dict[label_dict[flag]] = value
+
+def process_cl_args():
+    """ Read command line arguments to set global arg_dict.
+    Args:
+       None
+
+    Returns:
+      Boolean: true if successful, false otherwise
+    """
+    inarg = None
+    for arg in sys.argv[1:]:
+        if (inarg is not None):
+            set_arg_dict(inarg, arg)
+            inarg = None
+        elif (len(arg) and arg[0] == '-'):
+            inarg = arg[1]
+
+    return True
+
+def validate_cl_args():
+    """ Identify missing or bad info and display args before running.
+    Args:
+       None
+
+    Returns:
+       True if arguments are valid, False otherwise
+    """
+    global arg_dict, label_dict
+    arg_values_set = True
+    # for key, value in arg_dict.items():
+    #     if (value is None and key != "table_name"):
+    #         arg_values_set = False
+    #         cl_option = key_from_value(label_dict, key)
+    #         if (cl_option):
+    #             print("User must provide value for {} (use -{}).".format(key, cl_option))
+    #         else:
+    #             print("User must provide value for {} (ERROR finding option).".format(key))
+
+    return arg_values_set
+    
+
+def make_connection():
+    """ Uses values in global arg_dict to open a MySql connection.
+    Args:
+       None
+
+    Returns:
+      None
+    """
+    global arg_dict
+    return pymysql.connect(host = arg_dict["host_name"],
+                           user = arg_dict["user_name"],
+                           database = arg_dict["database_name"],
+                           cursorclass = pymysql.cursors.DictCursor)
+
+def generate_table_columns_query(conn):
+    """ Generates an SQL expression for collecting table field data.
+    Args:
+       conn (object): Open MySQL connection
+    Returns:
+       string query
+    """
+    global arg_dict
+    colnames=[
+        "COLUMN_NAME",
+        "DATA_TYPE",
+        "CHARACTER_MAXIMUM_LENGTH",
+        "NUMERIC_PRECISION",
+        "NUMERIC_SCALE",
+#        "DATATIME_PRECISION",
+        "COLUMN_TYPE",
+        "EXTRA"
+        ]
+    qtemplate="""
+SELECT {}
+  FROM information_schema.COLUMNS
+ WHERE TABLE_SCHEMA = '{}'
+   AND TABLE_NAME = '{}'"""
+
+    return qtemplate.format(", ".join(colnames),
+                            arg_dict["database_name"],
+                            arg_dict["table_name"]);
+
+def generate_database_tables_list_query(conn):
+    """ Generate an SQL expression for collecting table names in database."
+    Args:
+       conn (object): Open MySQL connection
+    Returns:
+       string query
+    """
+    global arg_dict
+    qtemplate="""
+SELECT TABLE_NAME
+  FROM information_schema.TABLES
+ WHERE TABLE_SCHEMA = '{}' """
+
+    return qtemplate.format(arg_dict["database_name"]);
+
+    
+def collect_table_columns(conn):
+    """ Collect table fields into a reusable structure.
+    Args:
+       conn (object): open mysql connection
+
+    Returns:
+       List of dictionaries describing the columns
+    """
+    query = generate_table_columns_query(conn)
+
+    table_def=[]
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(query)
+            rows = cur.fetchall()
+            for row in rows:
+                table_def.append(row)
+
+            return table_def;
+
+    except BaseException as err:
+        print(f"Unexpected {err=}, {type(err)=}")
+        raise
+
+def show_table_names(conn):
+    """ Display list of tables for given database.
+        This function is called if no table name was given.
+
+    Args:
+       conn (object): open mysql connection
+
+    Returns:
+       None
+    """
+    global arg_dict
+    print("[32;1mTables in database '{}'[m".format(arg_dict["database_name"]) )
+    query = generate_database_tables_list_query(conn)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(query)
+            rows = cur.fetchall()
+            for row in rows:
+                print(row["TABLE_NAME"]);
+
+    except BaseException as err:
+        print(f"Unexpected {err=}, {type(err)=}")
+        raise
+
+def show_database_names(conn):
+    """ Display list of databases in the host
+        This function is called if neither table nor database name given.
+    Args:
+       conn (object): open mysql connection
+
+    Returns:
+       None
+    """
+    query = "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA"
+    print("[32;1mDatabase Names[m")
+    try:
+        with conn.cursor() as cur:
+            cur.execute(query)
+            rows = cur.fetchall()
+            for row in rows:
+                print(row["SCHEMA_NAME"]);
+
+    except BaseException as err:
+        print(f"Unexpected {err=}, {type(err)=}")
+        raise
+
+def process_connection(conn):
+    print("Processing the connection")
+    if ( arg_dict["database_name"] is None ):
+        show_database_names(conn)
+    elif ( arg_dict["table_name"] is None ):
+        show_table_names(conn)
+    else:
+        print("We have a database {} and table {}.".format(
+              arg_dict["database_name"],
+              arg_dict["table_name"]))
+        cdefs = collect_table_columns(conn)
+        for row in cdefs:
+            print("{} {}".format(row["COLUMN_NAME"], row["COLUMN_TYPE"]))
+
+def main():
+    global arg_dict
+
+    if (len(sys.argv) == 1):
+        show_usage();
+    else:
+        if process_cl_args():
+            if (validate_cl_args()):
+                conn = make_connection()
+                if conn:
+                    process_connection(conn)
+                    conn.close()
+                else:
+                    print("Failed to get a connection.")
+            else:
+                print("Can't proceed without missing arguments.")
+        else:
+            print("Failed to process the command line arguments.")
+          
+if __name__ == "__main__":
+    main()
+    
