@@ -2,9 +2,9 @@
 
 import sys
 
-import pymysql
-import pymysql.cursors
-
+import sgdb
+from sgscripts import SGScripter
+    
 # Global dictionary with some default values that stores command line options.
 arg_dict = {
     "host_name": "192.168.0.20",
@@ -12,6 +12,8 @@ arg_dict = {
     "user_password": None,
     "database_name": None,
     "table_name": None,
+    "list": None,
+    "action": None
 }
 
 # Dictionary to connect command line flags to arg_dict keys
@@ -20,7 +22,9 @@ label_dict = {
     "u": "user_name",
     "p": "user_password",
     "d": "database_name",
-    "t": "table_name"
+    "t": "table_name",
+    "l": "display list",
+    "a": "action"
 }
 
 actions_dict = {
@@ -33,7 +37,13 @@ options_dict = {
     "p": "mysql user password",
     "H": "mysql host name",
     "d": "mysql database name",
-    "t": "mysql table name"
+    "t": "mysql table name",
+    "a": "schemagen action"
+}
+
+lists_dict = {
+    "tables": getattr(sgdb, "display_tables"),
+    "procs" : getattr(sgdb, "display_procs")
 }
 
 def show_usage():
@@ -109,150 +119,37 @@ def validate_cl_args():
     #             print("User must provide value for {} (ERROR finding option).".format(key))
 
     return arg_values_set
-    
 
-def make_connection():
-    """ Uses values in global arg_dict to open a MySql connection.
-    Args:
-       None
-
-    Returns:
-      None
-    """
-    global arg_dict
-    return pymysql.connect(host = arg_dict["host_name"],
-                           user = arg_dict["user_name"],
-                           database = arg_dict["database_name"],
-                           cursorclass = pymysql.cursors.DictCursor)
-
-def generate_table_columns_query(conn):
-    """ Generates an SQL expression for collecting table field data.
-    Args:
-       conn (object): Open MySQL connection
-    Returns:
-       string query
-    """
-    global arg_dict
-    colnames=[
-        "COLUMN_NAME",
-        "DATA_TYPE",
-        "CHARACTER_MAXIMUM_LENGTH",
-        "NUMERIC_PRECISION",
-        "NUMERIC_SCALE",
-#        "DATATIME_PRECISION",
-        "COLUMN_TYPE",
-        "EXTRA"
-        ]
-    qtemplate="""
-SELECT {}
-  FROM information_schema.COLUMNS
- WHERE TABLE_SCHEMA = '{}'
-   AND TABLE_NAME = '{}'"""
-
-    return qtemplate.format(", ".join(colnames),
-                            arg_dict["database_name"],
-                            arg_dict["table_name"]);
-
-def generate_database_tables_list_query(conn):
-    """ Generate an SQL expression for collecting table names in database."
-    Args:
-       conn (object): Open MySQL connection
-    Returns:
-       string query
-    """
-    global arg_dict
-    qtemplate="""
-SELECT TABLE_NAME
-  FROM information_schema.TABLES
- WHERE TABLE_SCHEMA = '{}' """
-
-    return qtemplate.format(arg_dict["database_name"]);
-
-    
-def collect_table_columns(conn):
-    """ Collect table fields into a reusable structure.
-    Args:
-       conn (object): open mysql connection
-
-    Returns:
-       List of dictionaries describing the columns
-    """
-    query = generate_table_columns_query(conn)
-
-    table_def=[]
-
-    try:
-        with conn.cursor() as cur:
-            cur.execute(query)
-            rows = cur.fetchall()
-            for row in rows:
-                table_def.append(row)
-
-            return table_def;
-
-    except BaseException as err:
-        print(f"Unexpected {err=}, {type(err)=}")
-        raise
-
-def show_table_names(conn):
-    """ Display list of tables for given database.
-        This function is called if no table name was given.
-
-    Args:
-       conn (object): open mysql connection
-
-    Returns:
-       None
-    """
-    global arg_dict
-    print("[32;1mTables in database '{}'[m".format(arg_dict["database_name"]) )
-    query = generate_database_tables_list_query(conn)
-    try:
-        with conn.cursor() as cur:
-            cur.execute(query)
-            rows = cur.fetchall()
-            for row in rows:
-                print(row["TABLE_NAME"]);
-
-    except BaseException as err:
-        print(f"Unexpected {err=}, {type(err)=}")
-        raise
-
-def show_database_names(conn):
-    """ Display list of databases in the host
-        This function is called if neither table nor database name given.
-    Args:
-       conn (object): open mysql connection
-
-    Returns:
-       None
-    """
-    query = "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA"
-    print("[32;1mDatabase Names[m")
-    try:
-        with conn.cursor() as cur:
-            cur.execute(query)
-            rows = cur.fetchall()
-            for row in rows:
-                print(row["SCHEMA_NAME"]);
-
-    except BaseException as err:
-        print(f"Unexpected {err=}, {type(err)=}")
-        raise
+def print_procedure_intro():
+    print()
+    print( "-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --" )
 
 def process_connection(conn):
+    db_name = arg_dict["database_name"]
+    table_name = arg_dict["table_name"]
+
     print("Processing the connection")
-    if ( arg_dict["database_name"] is None ):
-        show_database_names(conn)
-    elif ( arg_dict["table_name"] is None ):
-        show_table_names(conn)
+    if ( db_name is None ):
+        sgdb.show_database_names(conn)
+    elif ( table_name is None ):
+        sgdb.show_table_names(conn, db_name)
     else:
-        print("We have a database {} and table {}.".format(
-              arg_dict["database_name"],
-              arg_dict["table_name"]))
-        cdefs = collect_table_columns(conn)
-        for row in cdefs:
-            print("{} {}".format(row["COLUMN_NAME"], row["COLUMN_TYPE"]))
+        print("We have a database {} and table {}.".format(db_name, table_name))
+
+        cdefs = sgdb.collect_table_columns(conn, db_name, table_name)
+
+        scripter = SGScripter()
+        print_procedure_intro()
+        scripter.print_proc_list(table_name, "App_Person_List", cdefs)
+        print_procedure_intro()
+        scripter.print_proc_add(table_name, "App_Person_Add", cdefs, "App_Person_List")
+        print_procedure_intro()
+        scripter.print_proc_read(table_name, "App_Person_Read", cdefs)
+        print_procedure_intro()
+        scripter.print_proc_update(table_name, "App_Person_Update", cdefs, "App_Person_List")
+
+        scripter.get_autonumber_primary_key(cdefs)
+
 
 def main():
     global arg_dict
@@ -262,7 +159,9 @@ def main():
     else:
         if process_cl_args():
             if (validate_cl_args()):
-                conn = make_connection()
+                conn = sgdb.make_connection(arg_dict["host_name"],
+                                            arg_dict["user_name"],
+                                            arg_dict["user_password"])
                 if conn:
                     process_connection(conn)
                     conn.close()
@@ -272,6 +171,7 @@ def main():
                 print("Can't proceed without missing arguments.")
         else:
             print("Failed to process the command line arguments.")
+
           
 if __name__ == "__main__":
     main()
