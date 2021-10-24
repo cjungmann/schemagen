@@ -46,6 +46,8 @@ lists_dict = {
     "procs" : getattr(sgdb, "display_procs")
 }
 
+script_delimiter = "$$"
+
 def show_usage():
     global options_dict
     print("The available options are:")
@@ -128,17 +130,16 @@ def process_connection(conn):
     db_name = arg_dict["database_name"]
     table_name = arg_dict["table_name"]
 
-    print("Processing the connection")
     if ( db_name is None ):
         sgdb.show_database_names(conn)
     elif ( table_name is None ):
         sgdb.show_table_names(conn, db_name)
     else:
-        print("We have a database {} and table {}.".format(db_name, table_name))
-
         cdefs = sgdb.collect_table_columns(conn, db_name, table_name)
 
-        scripter = SGScripter()
+        print("DELIMITER " + script_delimiter)
+
+        scripter = SGScripter(delimiter=script_delimiter)
         print_procedure_intro()
         scripter.print_proc_list(table_name, "App_Person_List", cdefs)
         print_procedure_intro()
@@ -149,6 +150,9 @@ def process_connection(conn):
         scripter.print_proc_update(table_name, "App_Person_Update", cdefs, "App_Person_List")
 
         scripter.get_autonumber_primary_key(cdefs)
+
+        print()
+        print("DELIMITER ;")
 
 
 def main():
