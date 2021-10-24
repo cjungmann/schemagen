@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 
-class curbed_printer:
+class Curbed_Printer:
     # saved constructor arguments:
     indent = 0
     limit = 0
     separator = ','
     first_indent = 0
-    items_per_line = -1
 
     # derived values
     len_separator = 0
     text_length = 0
+    items_limit = 0
     
 
     def __init__(self, indent, limit, separator=", ", first_indent=0, items_per_line=-1):
@@ -18,10 +18,10 @@ class curbed_printer:
         self.limit = limit
         self.separator = separator
         self.first_indent = first_indent
-        self.items_per_line = items_per_line
 
         self.len_separator = len(separator)
         self.text_length = limit - indent
+        self.items_limit = items_per_line if items_per_line > 0 else 0xFFFFFF
 
     def print_ruler(self):
         for x in range(1, self.limit+1):
@@ -50,41 +50,47 @@ class curbed_printer:
         line = []
         accrued = 0
         first_line = True
-        item_count = len(items)
+        item_count = 0
 
         for i, item in enumerate(items):
             itemlen = len(item) + self.len_separator
             newlen = accrued + itemlen
-            if (newlen <= self.text_length):
+
+            if newlen <= self.text_length and item_count < self.items_limit:
                 line.append(item)
                 accrued = newlen
+                item_count += 1
             else:
-                self.print_line(line, first=first_line, final = item_count < i)
+                self.print_line(line, first=first_line)
                 first_line = False
                 line = [item]
                 accrued = itemlen
-
-            len(item)
+                item_count = 1
 
         if len(line) > 0:
             self.print_line(line, first=first_line, final = True)
 
 if __name__ == "__main__":
     items = [ "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
-              "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen",
-              "twenty", "twenty-one", "twenty-two", "twenth-three", "twenty-four", "twenty-five", "twenty-six", "twenty-seven", "twenty-eight", "twenty-nine",
-              "thirty", "thirty-one", "thirty-two", "twenth-three", "thirty-four", "thirty-five", "thirty-six", "thirty-seven", "thirty-eight", "thirty-nine",
-              "forty", "forty-one", "forty-two", "twenth-three", "forty-four", "forty-five", "forty-six", "forty-seven", "forty-eight", "forty-nine"]
+              "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
+              "seventeen", "eighteen", "nineteen", "twenty", "twenty-one", "twenty-two",
+              "twenth-three", "twenty-four", "twenty-five", "twenty-six", "twenty-seven",
+              "twenty-eight", "twenty-nine", "thirty", "thirty-one", "thirty-two",
+              "twenth-three", "thirty-four", "thirty-five", "thirty-six", "thirty-seven",
+              "thirty-eight", "thirty-nine", "forty", "forty-one", "forty-two",
+              "twenth-three", "forty-four", "forty-five", "forty-six", "forty-seven",
+              "forty-eight", "forty-nine" ]
 
+    indent = 12
     
     # Make a printer object
-    printer = curbed_printer(15, 80)
+    printer = Curbed_Printer(indent, 80, items_per_line=5)
 
     # For confirming line length a position 'ruler'.
     printer.print_ruler()
 
     # Fake a line prefix
-    print(14 * '_' + "(", end='')
+    print((indent-1) * '_' + "(", end='')
     printer.print(items)
 
     # Terminate the parenthetical group
