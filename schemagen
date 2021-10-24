@@ -1,10 +1,16 @@
 #!/usr/bin/env python
 
+"""Generate MySQL Procedures from a Table for Schema Framework Application.
+
+"""
+
 import sys
 
 import sgdb
 from sgscripts import SGScripter
-    
+
+SCRIPT_DELIMITER = "$$"
+
 # Global dictionary with some default values that stores command line options.
 arg_dict = {
     "host_name": "192.168.0.20",
@@ -46,15 +52,13 @@ lists_dict = {
     "procs" : getattr(sgdb, "display_procs")
 }
 
-script_delimiter = "$$"
-
 def show_usage():
-    global options_dict
+    """Auto-generate a usage display from argument-handling dictionaries."""
     print("The available options are:")
     for key, value in options_dict.items():
-          print(f"{key}:  {value}")
+        print(f"{key}:  {value}")
 
-def key_from_value(dict, value):
+def key_from_value(generic_dict, value):
     """ Returns first dictionary item whose value matches 'value'
     Args:
        dict (dictionary): Dictionary to be searched
@@ -64,12 +68,11 @@ def key_from_value(dict, value):
        key value for matching item, None if not found
        desired item, or None if not found
     """
-    for item in dict.items():
-        if (item[1] == value):
+    for item in generic_dict.items():
+        if item[1] == value:
             return item[0]
 
     return None
-    
 
 def set_arg_dict(flag, value):
     """ Sets a dictionary value with command line options flags.
@@ -79,8 +82,7 @@ def set_arg_dict(flag, value):
     Returns:
       None
     """
-    global label_dict, arg_dict
-    if (flag in label_dict):
+    if flag in label_dict:
         arg_dict[label_dict[flag]] = value
 
 def process_cl_args():
@@ -93,29 +95,32 @@ def process_cl_args():
     """
     inarg = None
     for arg in sys.argv[1:]:
-        if (inarg is not None):
+        if inarg is not None:
             set_arg_dict(inarg, arg)
             inarg = None
-        elif (len(arg) and arg[0] == '-'):
+        elif len(arg) and arg[0] == '-':
             inarg = arg[1]
 
     return True
 
 def validate_cl_args():
     """ Identify missing or bad info and display args before running.
+
+    This function isn't doing anything now, but it will when the
+    more complicated options are implemented.
+
     Args:
        None
 
     Returns:
        True if arguments are valid, False otherwise
     """
-    global arg_dict, label_dict
     arg_values_set = True
     # for key, value in arg_dict.items():
-    #     if (value is None and key != "table_name"):
+    #     if value is None and key != "table_name":
     #         arg_values_set = False
     #         cl_option = key_from_value(label_dict, key)
-    #         if (cl_option):
+    #         if cl_option:
     #             print("User must provide value for {} (use -{}).".format(key, cl_option))
     #         else:
     #             print("User must provide value for {} (ERROR finding option).".format(key))
@@ -123,23 +128,32 @@ def validate_cl_args():
     return arg_values_set
 
 def print_procedure_intro():
+    """Print some simple introduction text to set off procedures in code."""
     print()
     print( "-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --" )
 
 def process_connection(conn):
+    """With a good connection, now execute the 'mission' set out in the parameters.
+
+    Args:
+       conn (object): An open MySQL/MariaDB connection
+
+    Returns:
+       None
+    """
     db_name = arg_dict["database_name"]
     table_name = arg_dict["table_name"]
 
-    if ( db_name is None ):
+    if db_name is None:
         sgdb.show_database_names(conn)
-    elif ( table_name is None ):
+    elif table_name is None:
         sgdb.show_table_names(conn, db_name)
     else:
         cdefs = sgdb.collect_table_columns(conn, db_name, table_name)
 
-        print("DELIMITER " + script_delimiter)
+        print("DELIMITER " + SCRIPT_DELIMITER)
 
-        scripter = SGScripter(delimiter=script_delimiter)
+        scripter = SGScripter(delimiter=SCRIPT_DELIMITER)
         print_procedure_intro()
         scripter.print_proc_list(table_name, "App_Person_List", cdefs)
         print_procedure_intro()
@@ -156,13 +170,12 @@ def process_connection(conn):
 
 
 def main():
-    global arg_dict
-
-    if (len(sys.argv) == 1):
-        show_usage();
+    """A main() function to satisfy the C-programmer in me."""
+    if len(sys.argv) == 1:
+        show_usage()
     else:
         if process_cl_args():
-            if (validate_cl_args()):
+            if validate_cl_args():
                 conn = sgdb.make_connection(arg_dict["host_name"],
                                             arg_dict["user_name"],
                                             arg_dict["user_password"])
@@ -176,7 +189,5 @@ def main():
         else:
             print("Failed to process the command line arguments.")
 
-          
 if __name__ == "__main__":
     main()
-    
