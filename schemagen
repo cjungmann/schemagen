@@ -48,8 +48,8 @@ options_dict = {
 }
 
 lists_dict = {
-    "tables": getattr(sgdb, "display_tables"),
-    "procs" : getattr(sgdb, "display_procs")
+    "tables": getattr(sgdb, "show_table_names"),
+    "procs" : getattr(sgdb, "show_procedure_names")
 }
 
 def show_usage():
