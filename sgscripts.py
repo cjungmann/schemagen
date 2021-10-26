@@ -1,11 +1,42 @@
 #!/usr/bin/env python
 
+from curbed_printer import Curbed_Printer
+
 class SGScripter:
     tabstop = 4
     delimiter = "$$"
+    printer_limit = 80
+    printer_items_per_line = -1
 
-    def __init__(self, tabstop=4):
+    def __init__(self, tabstop=4, delimiter="$$", printer_limit=80, printer_items_per_line=-1):
         self.tabstop = tabstop
+        self.printer_limit = printer_limit
+        self.printer_items_per_line = printer_items_per_line
+
+    def field_prohibits_nulls(self, field):
+        return field["IS_NULLABLE"] == "NO"
+
+    def field_is_primary_key(self, field):
+        return "PRI" in field["COLUMN_KEY"]
+
+    def field_is_unsigned(self, field):
+        return 'unsigned' in field["COLUMN_TYPE"]
+
+    def field_is_auto_increment(self, field):
+        return 'auto_increment' in field["EXTRA"]
+
+    def field_is_autonumber_primary_key(self, field):
+        return (self.field_is_primary_key(field)
+                and self.field_is_auto_increment(field))
+    
+    def get_autonumber_primary_key(self, fields):
+        """ Find the integer primary key field for a list of fields.
+        """
+        for field in fields:
+            if (self.field_is_autonumber_primary_key(field)):
+                return field
+
+        return None
 
     def print_proc_top(self, proc_name):
         """ Print the conditional procedure delete, followed by the
@@ -26,82 +57,103 @@ class SGScripter:
 
         return declare_len
 
-    def field_prohibits_nulls(self, field):
-        return field["IS_NULLABLE"] == "NO"
 
-    def field_is_primary_key(self, field):
-        return "PRI" in field["COLUMN_KEY"]
+    def get_type_string_from_field(self, field, keep_null=False, enum_as_varchar=False):
+        """ Generate a procedure parameter appropriate type string.
 
-    def field_is_unsigned(self, field):
-        return 'unsigned' in field["COLUMN_TYPE"]
+        The string returned from this function is appropriate for describing
+        the data type of a parameter of a stored procedure.  A procedure
+        parameter has no need for AUTO_INCREMENT or key attributes, and these
+        will not be included in the output string.
 
-    def field_is_auto_increment(self, field):
-        return 'auto_increment' in field["EXTRA"]
+        Args:
+           field (dictionary): A information_schema.COLUMNS record that describes
+                               a field of a table.
+           keep_null (boolean, optional): Include `NOT NULL` in output if field
+                               has a `NOT NULL` description.  Defaults to False.
+           enum_as_varchar (boolean, optional): False by default, which results in
+                               the entire ENUM declaration for the parameter.  If
+                               `enum_as_varchar` is True, the parameter type will 
+                               be converted to a VARCHAR of sufficient length to
+                               contain the longest ENUM value.
 
-    def field_is_autonumber_primary_key(self, field):
-        return (self.field_is_primary_key(field)
-                and self.field_is_auto_increment(field))
-    
-
-    def get_type_string_from_field(self, field):
-        """
-        
+        Returns:
+           A parameter data type string.
         """
         stype = []
-        notnull = field["IS_NULLABLE"] == "NO"
-
-        autoinc = 'auto_increment' in field["EXTRA"]
-        prikey = 'PRI' in field["COLUMN_KEY"]
-        unsigned = 'unsigned' in field["COLUMN_TYPE"]
 
         data_type = field["DATA_TYPE"].upper()
+        unsigned = 'unsigned' in field["COLUMN_TYPE"]
+
+        notnull = field["IS_NULLABLE"] == "NO"
+
+        # autoinc = 'auto_increment' in field["EXTRA"]
+        # prikey = 'PRI' in field["COLUMN_KEY"]
+
+        char_max_len = field["CHARACTER_MAXIMUM_LENGTH"]
         
 
-        if ( 'INT' in data_type ):
+        if 'INT' in data_type:
             stype.append(data_type)
-            if ( self.field_is_unsigned(field) ):
+            if self.field_is_unsigned(field):
                 stype.append("UNSIGNED")
-        elif ( 'CHAR' in data_type ):
-            stype.append("{}({})".format(data_type,
-                                         field["CHARACTER_MAXIMUM_LENGTH"]))
+        elif 'CHAR' in data_type:
+            stype.append("{}({})".format(data_type, char_max_len))
+        elif data_type == 'NUMERIC' or data_type == 'DECIMAL':
+            precision = field["NUMERIC_PRECISION"]
+            scale = field["NUMERIC_SCALE"]
+            stype.append("NUMERIC({},{})".format(precision, scale))
+        elif data_type == "ENUM":
+            if enum_as_varchar:
+                stype.append("VARCHAR({})".format(char_max_len))
+            else:
+                stype.append(field["COLUMN_TYPE"].replace('enum', 'ENUM', 1))
+        elif data_type == "SET":
+            stype.append(field["COLUMN_TYPE"].replace('set', 'SET', 1))
         else:
             stype.append(data_type)
 
         return " ".join(stype)
 
-    def get_autonumber_primary_key(self, fields):
-        for field in fields:
-            if (self.field_is_autonumber_primary_key(field)):
-                return field
-
-        return None
-
-
     def print_proc_params(self, indent_len, fields):
-        params_indent = ""
+        items = []
         for field in fields:
-            if (params_indent == ""):
-                params_indent = ' ' * indent_len
-            else:
-                print(",\n" + params_indent, end='')
-                
-            print ("{} {}".format(field["COLUMN_NAME"],
-                                  self.get_type_string_from_field(field)),
-                   end='')
+            item = "{} {}".format(field["COLUMN_NAME"],
+                                  self.get_type_string_from_field(field))
+            items.append(item)
 
+        printer = Curbed_Printer(indent_len,
+                                 self.printer_limit,
+                                 items_per_line = self.printer_items_per_line)
+
+        printer.print(items)
         print(")")
-
+        
     def print_list_param_names(self, indent_len, fields, prefix='', end='\n'):
-        params_indent = ""
+        items = []
         for field in fields:
-            if (params_indent == ""):
-                params_indent = ' ' * indent_len
-            else:
-                print(",\n" + params_indent, end='')
-                
-            print (prefix + field["COLUMN_NAME"], end='')
+            items.append( prefix + field["COLUMN_NAME"] )
 
-        print(end, end='')
+        printer = Curbed_Printer(indent_len,
+                                 self.printer_limit,
+                                 items_per_line = self.printer_items_per_line)
+
+        printer.print(items)
+        print(end, end="")
+
+    def print_list_sets(self, indent_len, fields, autonumber_field, prefix='', end='\n'):
+        items = []
+        for field in fields:
+            if (field != autonumber_field):
+                fname = field["COLUMN_NAME"]
+                items.append("{}{} = {}".format(prefix, fname, fname))
+            
+        printer = Curbed_Printer(indent_len,
+                                 self.printer_limit,
+                                 items_per_line = self.printer_items_per_line)
+
+        printer.print(items)
+        print(end, end="")
 
     def print_to_indent(self, indent_len, indented_string, end='\n'):
         space_count = indent_len - len(indented_string)
@@ -175,7 +227,7 @@ class SGScripter:
         # Indent VALUES(... enough to line up value names with parameter names
         values_string = "VALUES ("
         print(' ' * (names_indent_len - len(values_string)) + values_string, end='')
-        self.print_list_param_names(names_indent_len, fields, end=")\n")
+        self.print_list_param_names(names_indent_len, fields, end=");\n")
 
         if (confirm_proc_name is not None):
             print()
@@ -240,13 +292,7 @@ class SGScripter:
 
             # SETs
             self.print_to_indent(fields_indent_len, "SET ", end="")
-            next_indent = 0
-            for field in fields:
-                if (field != autonumber_field):
-                    field_name = field["COLUMN_NAME"]
-                    print( ' ' * next_indent + table_prefix + field_name + " = " + field_name)
-                    if (next_indent == 0):
-                        next_indent = fields_indent_len
+            self.print_list_sets(fields_indent_len, fields, autonumber_field, prefix=table_prefix)
                         
             where_string = table_prefix + autonumber_name + " = " + autonumber_name
             self.print_to_indent(fields_indent_len, "WHERE ", end=where_string + ";\n")
