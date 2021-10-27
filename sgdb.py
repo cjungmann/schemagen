@@ -26,7 +26,7 @@ def make_connection(host, user, password):
                            database = "information_schema",
                            cursorclass = pymysql.cursors.DictCursor)
 
-def generate_table_columns_query(database, table):
+def prep_query_table_columns(database, table):
     """ Generates an SQL expression for collecting table field data.
     Args:
        database (string):  Name of the database
@@ -55,14 +55,13 @@ SELECT {}
 
     return qtemplate.format(", ".join(colnames), database, table)
 
-def generate_database_tables_list_query(database):
+def prep_query_tables_list(database):
     """ Generate an SQL expression for collecting table names in database.
     Args:
        database (string):  Name of the database
     Returns:
        string query
     """
-
     qtemplate="""
 SELECT TABLE_NAME
   FROM information_schema.TABLES
@@ -70,7 +69,7 @@ SELECT TABLE_NAME
 
     return qtemplate.format(database)
 
-def generate_database_procedures_list_query(database):
+def prep_query_procedures_list(database):
     """Generate an SQL expression for collecting procedure names in database.
     Args:
        database (string): Name of the databse
@@ -79,7 +78,7 @@ def generate_database_procedures_list_query(database):
     """
     qtemplate="""
 SELECT ROUTINE_NAME
-  FROM information_schema.TABLES
+  FROM information_schema.ROUTINES
  WHERE ROUTINE_SCHEMA = '{}' """
 
     return qtemplate.format(database)
@@ -93,7 +92,7 @@ def collect_table_columns(conn, database, table):
     Returns:
        List of dictionaries describing the columns
     """
-    query = generate_table_columns_query(database, table)
+    query = prep_query_table_columns(database, table)
 
     table_def=[]
 
@@ -110,75 +109,79 @@ def collect_table_columns(conn, database, table):
         print(f"Unexpected {err=}, {type(err)=}")
         raise
 
-def display_procs(conn):
-    """Placeholder for task of printing procedure names."""
-    print("We should be printing procedure names right now.")
-
-def show_table_names(conn, database):
-    """ Display list of tables for given database.
-        This function is called if no table name was given.
+def get_list_of_table_names(conn, database):
+    """ Returns a list of tables for given database.
 
     Args:
        conn (object):     open mysql connection
        database (string): Name of database
 
     Returns:
-       None
+       list of table names
     """
-    print("[32;1mTables in database '{}'[m".format(database) )
-    query = generate_database_tables_list_query(database)
+    query = prep_query_tables_list(database)
+    list = None
     try:
         with conn.cursor() as cur:
             cur.execute(query)
+            list = []
             rows = cur.fetchall()
             for row in rows:
-                print(row["TABLE_NAME"])
+                list.append(row["TABLE_NAME"])
 
     except BaseException as err:
         print(f"Unexpected {err=}, {type(err)=}")
         raise
 
-def show_procedure_names(conn, database):
-    """Display list of procedures for given database.
+    return list
+
+def get_list_of_procedure_names(conn, database):
+    """Returns a list of procedures for given database.
 
     Args:
        conn (object):     open mysql connection
        database (string): Name of database
 
     Returns:
-       None
+       list of procedure names
     """
     print("[32;1mProcedures in database '{}'[m".format(database) )
-    query = generate_database_procedure_list_query(database)
+    list = None
+    query = prep_query_procedures_list(database)
     try:
         with conn.cursor() as cur:
             cur.execute(query)
+            list = []
             rows = cur.fetchall()
             for row in rows:
-                print(row["ROUTINE_NAME"])
+                list.append(row["ROUTINE_NAME"])
 
     except BaseException as err:
         print(f"Unexpected {err=}, {type(err)=}")
         raise
 
-def show_database_names(conn):
-    """ Display list of databases in the host
-        This function is called if neither table nor database name given.
+    return list
+
+def get_list_of_database_names(conn):
+    """ Returns a list of database names for the connection's host
     Args:
        conn (object): open mysql connection
 
     Returns:
-       None
+       list of database names
     """
+    list = None
     query = "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA"
-    print("[32;1mDatabase Names[m")
     try:
         with conn.cursor() as cur:
             cur.execute(query)
+            list = []
             rows = cur.fetchall()
             for row in rows:
-                print(row["SCHEMA_NAME"])
+                list.append(row["SCHEMA_NAME"])
 
     except BaseException as err:
         print(f"Unexpected {err=}, {type(err)=}")
         raise
+
+    return list
