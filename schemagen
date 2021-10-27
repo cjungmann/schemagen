@@ -1,20 +1,65 @@
 #!/usr/bin/env python
 
+""" Application used with the Schema Framework to generate procedures from tables.
+
+The generated procedures can be used as is or as guides to best practices using
+the Schema Framework.
+ """
+
 import argparse
 import sgdb
+import os
 from sgscripts import SGScripter
 
+def get_cnf_values():
+    cnfdict = None
+    try:
+        cnf = open("./schemagen.cnf", mode="r")
+
+        cnfdict = {}
+        lines = cnf.readlines()
+        for line in lines:
+            if line[0] != '#':
+                keyval = line.rstrip("\r\n").split('=', maxsplit=1)
+                if len(keyval) == 2:
+                    cnfdict[keyval[0]] = keyval[1]
+        
+        cnf.close()
+    except OSError:
+        pass
+
+    return cnfdict
+    
+
 def prepare_argparse(parser):
+    """Prepare `parser` reference with program options."""
     list_choices=[ "databases", "tables", "procedures" ]
 
     script_choices=[ "all", "list", "add", "read", "update", "delete" ]
 
+    def_host = None
+    def_user = None
+    def_password = None
+    def_database = None
+    def_table = None
+
+    cdict = get_cnf_values()
+    if cdict:
+        def_host = cdict["host"] if "host" in cdict else None
+        def_user = cdict["user"] if "user" in cdict else None
+        def_password = cdict["password"] if "password" in cdict else None
+        def_database = cdict["database"] if "database" in cdict else None
+        def_table = cdict["table"] if "table" in cdict else None
+
     # parser.add_argument("-h", "--help", help="Show usage")
-    parser.add_argument("-H", "--host", help="Host address of MariaDB database")
-    parser.add_argument("-u", "--user", help="MariaDB user account name")
-    parser.add_argument("-d", "--database", help="MariaDB database to use")
-    parser.add_argument("-t", "--table", help="MariaDB table to use")
-    parser.add_argument("-p", "--password", help="MariaDB user account password")
+    parser.add_argument("-H", "--host", default=def_host, help="Host address of MariaDB database")
+    parser.add_argument("-u", "--user", default=def_user, help="MariaDB user account name")
+    parser.add_argument("-p", "--password", default=def_password, help="MariaDB user account password")
+    parser.add_argument("-d", "--database", default=def_database, help="MariaDB database to use")
+    parser.add_argument("-t", "--table", default=def_table, help="MariaDB table to use")
+
+    parser.add_argument("-n", "--number-per-line", type=int, default=-1,
+                        help="number per line to print of parameters or fields, -1 for unlimited")
 
     parser.add_argument("-l", "--list", choices=list_choices,
                         help="Display list of items.")
@@ -22,20 +67,26 @@ def prepare_argparse(parser):
     parser.add_argument("-s", "--script", choices=script_choices,
                         help="Produce indicate procedure from table.")
 
+    parser.add_argument("-a", "--args", action="store_true",
+                        help="Show arguments in schemagen.cnf style.")
+
 
 def make_connection(args):
+    """Create a connection with information_schema in order to collect database info."
+    Args:
+       args (dictionary):  Map of command line arguments.
+
+    Returns:
+       (object): Open MariaDB connection if successful, None if not.
+    """
     host = args["host"]
     user = args["user"]
     password = args["password"]
 
-    print("Using {}, {}, {}.".format(host, user, password))
-
     if host and user:
-        print("Attempting to make a connection!")
         return sgdb.make_connection(host, user, password)
-    else:
-        print("Abandoning attempt to make connection (missing values.)")
-        return None
+
+    return None
 
 def show_list_of_items(conn, database, list_type):
     """Output a list of names as indicated by list_choices in prepare_argparse().
@@ -48,44 +99,77 @@ def show_list_of_items(conn, database, list_type):
     Returns:
        None
     """
-    list = None
-    if requested_list == "databases":
-        list = sgdb.get_list_of_database_names(conn)
+    ilist = None
+    if list_type == "databases":
+        ilist = sgdb.get_list_of_database_names(conn)
     elif database:
-        if requested_list == "tables":
-            list = sgdb.get_list_of_table_names(conn, database)
-        elif requested_list == "procedures":
-            list = sgdb.get_list_of_procedure_names(conn, database)
+        if list_type == "tables":
+            ilist = sgdb.get_list_of_table_names(conn, database)
+        elif list_type == "procedures":
+            ilist = sgdb.get_list_of_procedure_names(conn, database)
 
-    if list is not None:
-        for name in list:
+    if ilist is not None:
+        for name in ilist:
             print(name)
 
-def produce_script_from_table(conn, database, table, name_prefix, script_type):
-    """Generate requested scripts"""
-    scripter = SGScripter()
-    
-    gen_map = scripter.get_calling_dictionary(table, name_prefix);
+def produce_script_from_table(conn, database, table, name_prefix, script_type, items_per_line=-1):
+    """Generate requested scripts
+    Args:
+       conn (object):        open MariaDB connection
+       database (string):    name of the database we're processing
+       table (string):       name of table for which processing will take place
+       name_prefix (string): prefix to use for procedures that are being created
+       script_type (string): procedure type to generate
+       items_per_line (integer, default -1): number per line printed of parameters or fields
+
+    Returns:
+       None
+    """
+    scripter = SGScripter(printer_items_per_line=items_per_line)
+
+    gen_map = scripter.get_calling_dictionary(table, name_prefix)
     table_fields = sgdb.collect_table_columns(conn, database, table)
 
-    for key, args in gen_map.items():
-        print("{}: {}".format(key, args[1::]))
-        args[0](table_fields, *args[1::])
-    
+    if script_type == "all":
+        for key, args in gen_map.items():
+            print("-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --")
+            args[0](table_fields, *args[1::])
+            print()
+    else:
+        args = gen_map[script_type]
+        if args:
+            args[0](table_fields, *args[1::])
+
+def display_cnf_from_args(args):
+    saveable = [ "host", "user", "password", "database", "table" ]
+    for key, value in args.items():
+        if key in saveable:
+            if value is None:
+                print(f"# {key}=")
+            else:
+                print(f"{key}={value}")
 
 
 def use_connection(conn, args):
+    """Starts requested tasks once the connection has been made.
+    Args:
+       conn (object):     open MariaDB connection
+       args (dictionary): arguments collected by `argparse`.
+
+    Returns:
+       None
+    """
     database = args["database"]
     table = args["table"]
 
     if args["list"]:
         show_list_of_items(conn, database, args["list"])
     elif args["script"] and table:
-        produce_script_from_table(conn, database, table, "App_Person", args["script"])
-
-
+        produce_script_from_table(conn, database, table, "App_Person",
+                                  args["script"], items_per_line=args["number_per_line"])
 
 def main():
+    """ Application entry point """
     parser = argparse.ArgumentParser()
     prepare_argparse(parser)
 
@@ -93,12 +177,13 @@ def main():
 
     conn = make_connection(args)
     if conn:
-        use_connection(conn, args)
+        if args["args"]:
+            display_cnf_from_args(args)
+        else:
+            use_connection(conn, args)
         conn.close()
     else:
         print("failed to get a connection.")
 
-    print("Hello world.")
-
 if __name__ == "__main__":
-    main();
+    main()
