@@ -47,10 +47,6 @@ options_dict = {
     "a": "schemagen action"
 }
 
-lists_dict = {
-    "tables": getattr(sgdb, "show_table_names"),
-    "procs" : getattr(sgdb, "show_procedure_names")
-}
 
 def show_usage():
     """Auto-generate a usage display from argument-handling dictionaries."""
@@ -99,7 +95,11 @@ def process_cl_args():
             set_arg_dict(inarg, arg)
             inarg = None
         elif len(arg) and arg[0] == '-':
-            inarg = arg[1]
+            if arg[1] in label_dict:
+                inarg = arg[1]
+            else:
+                print("Argument {} is not recognized.".format(arg))
+                return False
 
     return True
 
@@ -126,6 +126,13 @@ def validate_cl_args():
     #             print("User must provide value for {} (ERROR finding option).".format(key))
 
     return arg_values_set
+
+def show_cl_args():
+    """List values of the global user-choices "arg_dict" variable.
+    """
+    for key, value in arg_dict.items():
+        print("{}: {}".format(key, value))
+        
 
 def print_procedure_intro():
     """Print some simple introduction text to set off procedures in code."""
@@ -155,13 +162,15 @@ def process_connection(conn):
 
         scripter = SGScripter(delimiter=SCRIPT_DELIMITER)
         print_procedure_intro()
-        scripter.print_proc_list(table_name, "App_Person_List", cdefs)
+        scripter.print_proc_list(cdefs, table_name, "App_Person_List")
         print_procedure_intro()
-        scripter.print_proc_add(table_name, "App_Person_Add", cdefs, "App_Person_List")
+        scripter.print_proc_add(cdefs, table_name, "App_Person_Add", "App_Person_List")
         print_procedure_intro()
-        scripter.print_proc_read(table_name, "App_Person_Read", cdefs)
+        scripter.print_proc_read(cdefs, table_name, "App_Person_Read")
         print_procedure_intro()
-        scripter.print_proc_update(table_name, "App_Person_Update", cdefs, "App_Person_List")
+        scripter.print_proc_update(cdefs, table_name, "App_Person_Update", "App_Person_List")
+        print_procedure_intro()
+        scripter.print_proc_delete(cdefs, table_name, "App_Person_Delete")
 
         scripter.get_autonumber_primary_key(cdefs)
 
@@ -175,6 +184,10 @@ def main():
         show_usage()
     else:
         if process_cl_args():
+
+            show_cl_args();
+            input("Press ENTER to continue.")
+
             if validate_cl_args():
                 conn = sgdb.make_connection(arg_dict["host_name"],
                                             arg_dict["user_name"],
