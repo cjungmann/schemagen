@@ -360,7 +360,7 @@ class SGScripter:
         for type in types:
             method_name = "print_proc_" + type
             method_reference = getattr(self, method_name)
-            proc_name = name_prefix + "_" + type.capitalize()
+            proc_name = name_prefix + type.capitalize()
 
             # add and update type procedures always generate the
             # target record after a successful operation so the client
@@ -368,7 +368,7 @@ class SGScripter:
             # most current version
             args = [method_reference, table, proc_name]
             if type == "add" or type == "update":
-                args.append(name_prefix + "_List")
+                args.append(name_prefix + "List")
 
             dict[type] = args
 
