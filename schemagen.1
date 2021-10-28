@@ -23,21 +23,14 @@ Framework conventions.
 ./"
 ./"
 .SH OPTIONS
-.SS Generic Option
-.TP
-.BI \-h ", " \-\-help
-Quick help
-.TP
-.BI \-a ", " \-\-args
-Writes option values in a format that serves as a
-.I schemagen.cnf
-configuration file.
+./"
+./"
 .SS Connection Options
 .TP
 .BR \-H ", " \-\-host
 Address of 
 .dname
-database host
+database host.  This can be in dotted-decimal format or a host name.
 .TP
 .BR \-u ", " \-\-user
 Account username for the
@@ -52,17 +45,33 @@ Account password for the
 host.  This is optional if the
 .dname
 account has a blank password.
+./"
+./"
 .SS Domain Options
 .TP
 .BR \-d ", " \-\-database
+name of
 .dname
 database that hosts the tables and procedures.
 .TP
 .BR \-t ", " \-\-table
+name of a table in the
 .dname
-table name of the database in the host.  Although it generates no
+database on the host.  Although it generates no
 error, specifying a table without a database will not work.
-.SS Output Options
+./"
+./"
+.SS Output Types
+.TP
+.BI \-h ", " \-\-help
+Quick help
+.TP
+.BI \-a ", " \-\-args
+Writes option values in a format that serves as a
+.I schemagen.cnf
+configuration file.  With a configuration file in the local directory, the values
+contained therein will be used as default option values.  This option can also be
+used to view the current option values.
 .TP
 .BR \-l ", " \-\-list
 List the specified items in the existing domain (as set by the connection options).
@@ -85,25 +94,90 @@ and the stored procedure script will be generated that corresponds
 to the
 .B \-\-script
 option value.
+./"
+./"
+.SS Output Formatting
 .TP
-.BR \-i ", " \-\-items-per-line
-Maximum items per line of procedure parameters and SQL
-.I SELECT
-statement fields.  The default value is
-.I -1
-which prints as many items per line as fit within line-length
-constraints.  Other numbers will specify the maximum number of
-items per line that also fit within line-length constraints.
-For procedures that will be customized, it is often more convenient
-to specify
-.BI \-\-items-per-line 1
-in order to more easily add or remove items from the output.
+.BR \-I " and " \-\-indent-chars
+Number of character positions for each tab stop
+.TP
+.BR \-i " and " \-\-items-per-line
+Maximum number of items (parameters, select fields) per line in
+stored procedure code.  The default value,
+.IR -1 ,
+indicates to limit to items per line, which may be further restricted
+by
+.B \-\-max-chars
+per line.  Items are not broken, so a long item with more characters
+than
+.B \-\-max-chars
+will print out past the right limit.
 
+The default
+.RI ( -1 )
+is to print as many items per line as fit, but for
+procedures intended to be templates, using
+.B \-\-max-chars=1
+may make it easier to search for, add, or remove items from the template.
+
+.TP
+.BR \-m " and " \-\-max-chars
+Maximum number of characters per line.
+
+.SH NOTES
+.SS Using schemagen.cnf
+Putting commonly-used connection values into a configuration file
+can make it easier to user the
+.B schemagen
+utility.  Using the
+.B \-\-args
+option may make it easier to generate this file.
+
+Create the
+.B schemagen.cnf
+file with confirmed values by using the connection options on the same
+call as the
+.B \-\-args
+option.  See EXAMPLES below.
 
 
 ./"
 ./"
+.ds aang_nd \fBschemagen -H \fI192.168.0.20\fB -u \fIAang\fB -p\fIkatara\fR
+.ds aang \fBschemagen -H \fI192.168.0.20\fB -u \fIAang\fB -p\fIkatara \fB-d \fIAirNation\fR
 .SH EXAMPLES
+
+See list of a host's databases
+.RS
+\*[aang_nd] \fB-l \fIdatabases\fR
+.RE
+
+See list of table in a database
+.RS
+\*[aang] \fB-l \fItables\fR
+.RE
+
+Generate Procedures based on table Avatars
+.RS
+\*[aang] \fB-t\fI Avatars \fB-s \fIall\fR
+.RE
+
+Generate Specific Procedure
+.RS
+\*[aang] \fB-t\fI Avatars \fB-s \fIupdate\fR
+.RE
+
+Adjust output to create template with one-per-line parameters
+.RS
+\*[aang] \fB-t\fI Avatars \fB-s \fIall \fB-i \fI1\fR
+.RE
+
+Create a schemagen.cnf file
+.RS
+\*[aang] \fB--args\fR > schemagen.cnf
+.RE
+
+
 ./"
 ./"
 .SH SEE ALSO
