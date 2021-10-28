@@ -73,34 +73,45 @@ def prepare_argparse(parser):
         def_database = cdict["database"] if "database" in cdict else None
         def_table = cdict["table"] if "table" in cdict else None
 
-    parser.add_argument("-H", "--host", default=def_host,
+    # Connection Options
+    conn_group = parser.add_argument_group("Connection Options")
+
+    conn_group.add_argument("-H", "--host", default=def_host,
                         help="Host address of MariaDB database")
-    parser.add_argument("-u", "--user", default=def_user,
+    conn_group.add_argument("-u", "--user", default=def_user,
                         help="MariaDB user account name")
-    parser.add_argument("-p", "--password", default=def_password,
+    conn_group.add_argument("-p", "--password", default=def_password,
                         help="MariaDB user account password")
-    parser.add_argument("-d", "--database", default=def_database,
+    conn_group.add_argument("-d", "--database", default=def_database,
                         help="MariaDB database to use")
-    parser.add_argument("-t", "--table", default=def_table,
+    conn_group.add_argument("-t", "--table", default=def_table,
                         help="MariaDB table to use")
 
-    parser.add_argument("-l", "--list", choices=list_choices,
-                        help="Display list of items.")
-    parser.add_argument("-s", "--script", choices=script_choices,
-                        help="Produce indicate procedure from table.")
-
-    parser.add_argument("-P", "--proc_prefix",
-                        help="Stored procedure name prefix that precedes the procedure type.")
-    parser.add_argument("-D", "--delimiter", default="$$",
-                        help="Delimiter to indicate the end of CREATE PROCEDURE statements.")
-    parser.add_argument("-I", "--indent-chars", type=int, default=4,
-                        help="Number of character to indent each level of script code.")
-    parser.add_argument("-i", "--items-per-line", type=int, default=-1,
-                        help="maximum items per line of parameters or fields, -1 for unlimited")
-    parser.add_argument("-m", "--max-chars", type=int ,default=80,
-                        help="maximum characters per line")
-    parser.add_argument("-a", "--args", action="store_true",
+    # Output Types
+    type_group = parser.add_argument_group("Output Types")
+    type_group.add_argument("-a", "--args", action="store_true",
                         help="Show arguments in schemagen.cnf style.")
+    type_group.add_argument("-l", "--list", choices=list_choices,
+                        help="Display list of items.")
+    type_group.add_argument("-s", "--script", choices=script_choices,
+                        help="Produce specified procedure(s) from the table.")
+
+    # Output String Settings
+    strings_group = parser.add_argument_group("Output String Settings")
+    strings_group.add_argument("-P", "--proc_prefix",
+                        help="Stored procedure name prefix that precedes the procedure type.")
+    strings_group.add_argument("-D", "--delimiter", default="$$",
+                        help="Delimiter to indicate the end of CREATE PROCEDURE statements.")
+    
+    # Output Formatting
+    format_group = parser.add_argument_group("Output Formatting")
+    format_group.add_argument("-I", "--indent-chars", type=int, default=4,
+                        help="Number of character to indent each level of script code.")
+    format_group.add_argument("-i", "--items-per-line", type=int, default=-1,
+                        help="maximum items per line of parameters or fields, -1 for unlimited")
+    format_group.add_argument("-m", "--max-chars", type=int ,default=80,
+                        help="maximum characters per line")
+    
 
 
 def make_connection(args):
