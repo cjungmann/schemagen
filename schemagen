@@ -6,30 +6,52 @@ The generated procedures can be used as is or as guides to best practices using
 the Schema Framework.
  """
 
+import os
+import sys
+
+# The following code causes a pylint error without cause,
+# so I'm preventing the errors/warnings here:
+#pylint: disable=wrong-import-position
+#pylint: disable=import-error
+
+# In order to install this program in /usr/local/bin,
+# install project modules in schemagen.d and make sure
+# that Python can find them:
+
+script_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, script_path + '/schemagen.d')
 import argparse
 import sgdb
-import os
-from sgscripts import SGScripter
+from   sgscripts import SGScripter
+
+# Restoring pylint's default state:
+#pylint: enable=import-error
+#pylint: disable=enable-import-position
+
 
 def get_cnf_values():
+    """Get default option values from configuration file, schemagen.cnf, if it exists.
+    Args:
+       None
+
+    Returns:
+       (dictionary): key/value pairs found in schemagen.cnf file
+    """
     cnfdict = None
     try:
-        cnf = open("./schemagen.cnf", mode="r")
-
-        cnfdict = {}
-        lines = cnf.readlines()
-        for line in lines:
-            if line[0] != '#':
-                keyval = line.rstrip("\r\n").split('=', maxsplit=1)
-                if len(keyval) == 2:
-                    cnfdict[keyval[0]] = keyval[1]
-        
-        cnf.close()
+        with open("./schemagen.cnf", mode="rt", encoding="ascii") as cnf:
+            cnfdict = {}
+            lines = cnf.readlines()
+            for line in lines:
+                if line[0] != '#':
+                    keyval = line.rstrip("\r\n").split('=', maxsplit=1)
+                    if len(keyval) == 2:
+                        cnfdict[keyval[0]] = keyval[1]
     except OSError:
         pass
 
     return cnfdict
-    
+
 
 def prepare_argparse(parser):
     """Prepare `parser` reference with program options."""
@@ -51,22 +73,32 @@ def prepare_argparse(parser):
         def_database = cdict["database"] if "database" in cdict else None
         def_table = cdict["table"] if "table" in cdict else None
 
-    # parser.add_argument("-h", "--help", help="Show usage")
-    parser.add_argument("-H", "--host", default=def_host, help="Host address of MariaDB database")
-    parser.add_argument("-u", "--user", default=def_user, help="MariaDB user account name")
-    parser.add_argument("-p", "--password", default=def_password, help="MariaDB user account password")
-    parser.add_argument("-d", "--database", default=def_database, help="MariaDB database to use")
-    parser.add_argument("-t", "--table", default=def_table, help="MariaDB table to use")
-
-    parser.add_argument("-n", "--number-per-line", type=int, default=-1,
-                        help="number per line to print of parameters or fields, -1 for unlimited")
+    parser.add_argument("-H", "--host", default=def_host,
+                        help="Host address of MariaDB database")
+    parser.add_argument("-u", "--user", default=def_user,
+                        help="MariaDB user account name")
+    parser.add_argument("-p", "--password", default=def_password,
+                        help="MariaDB user account password")
+    parser.add_argument("-d", "--database", default=def_database,
+                        help="MariaDB database to use")
+    parser.add_argument("-t", "--table", default=def_table,
+                        help="MariaDB table to use")
 
     parser.add_argument("-l", "--list", choices=list_choices,
                         help="Display list of items.")
-
     parser.add_argument("-s", "--script", choices=script_choices,
                         help="Produce indicate procedure from table.")
 
+    parser.add_argument("-P", "--proc_prefix",
+                        help="Stored procedure name prefix that precedes the procedure type.")
+    parser.add_argument("-D", "--delimiter", default="$$",
+                        help="Delimiter to indicate the end of CREATE PROCEDURE statements.")
+    parser.add_argument("-I", "--indent-chars", type=int, default=4,
+                        help="Number of character to indent each level of script code.")
+    parser.add_argument("-i", "--items-per-line", type=int, default=-1,
+                        help="maximum items per line of parameters or fields, -1 for unlimited")
+    parser.add_argument("-m", "--max-chars", type=int ,default=80,
+                        help="maximum characters per line")
     parser.add_argument("-a", "--args", action="store_true",
                         help="Show arguments in schemagen.cnf style.")
 
@@ -112,35 +144,50 @@ def show_list_of_items(conn, database, list_type):
         for name in ilist:
             print(name)
 
-def produce_script_from_table(conn, database, table, name_prefix, script_type, items_per_line=-1):
+def produce_script_from_table(conn, args):
     """Generate requested scripts
     Args:
        conn (object):        open MariaDB connection
-       database (string):    name of the database we're processing
-       table (string):       name of table for which processing will take place
-       name_prefix (string): prefix to use for procedures that are being created
-       script_type (string): procedure type to generate
-       items_per_line (integer, default -1): number per line printed of parameters or fields
+       args (dictionary):    map of command line parameters, many of which
+                             will be used to configure the output.
 
     Returns:
        None
     """
-    scripter = SGScripter(printer_items_per_line=items_per_line)
+    database = args["database"]
+    table = args["table"]
 
-    gen_map = scripter.get_calling_dictionary(table, name_prefix)
+    script_type = args["script"]
+
+    items_per_line = args["items_per_line"]
+    max_chars = args["max_chars"]
+    indent_chars = args["indent_chars"]
+    delim = args["delimiter"]
+
+    proc_prefix = args["proc_prefix"]
+    if proc_prefix is None:
+        proc_prefix = f"App_{table.capitalize()}_"
+
+    scripter = SGScripter(tabstop=indent_chars,
+                          delimiter=delim,
+                          printer_limit=max_chars,
+                          printer_items_per_line=items_per_line)
+
+    gen_map = scripter.get_calling_dictionary(table, proc_prefix)
     table_fields = sgdb.collect_table_columns(conn, database, table)
 
     if script_type == "all":
-        for key, args in gen_map.items():
+        for fargs in gen_map.values():
             print("-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --")
-            args[0](table_fields, *args[1::])
+            fargs[0](table_fields, *fargs[1::])
             print()
     else:
-        args = gen_map[script_type]
-        if args:
-            args[0](table_fields, *args[1::])
+        fargs = gen_map[script_type]
+        if fargs:
+            fargs[0](table_fields, *fargs[1::])
 
 def display_cnf_from_args(args):
+    """Write out a set of arguments for use in a schemagen.cnf file."""
     saveable = [ "host", "user", "password", "database", "table" ]
     for key, value in args.items():
         if key in saveable:
@@ -165,8 +212,7 @@ def use_connection(conn, args):
     if args["list"]:
         show_list_of_items(conn, database, args["list"])
     elif args["script"] and table:
-        produce_script_from_table(conn, database, table, "App_Person",
-                                  args["script"], items_per_line=args["number_per_line"])
+        produce_script_from_table(conn, args)
 
 def main():
     """ Application entry point """
