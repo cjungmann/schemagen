@@ -83,9 +83,9 @@ def prepare_argparse(parser):
     conn_group.add_argument("-p", "--password", default=def_password,
                         help="MariaDB user account password")
     conn_group.add_argument("-d", "--database", default=def_database,
-                        help="MariaDB database to use")
+                        help="name of MariaDB database to use")
     conn_group.add_argument("-t", "--table", default=def_table,
-                        help="MariaDB table to use")
+                        help="name of MariaDB table to use")
 
     # Output Types
     type_group = parser.add_argument_group("Output Types")
