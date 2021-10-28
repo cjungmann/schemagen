@@ -5,6 +5,30 @@
 import pymysql
 import pymysql.cursors
 
+import re
+import socket   # For resolving host names
+
+reip = re.compile("\d{1,3}(\.\d{1,3}){3}")
+
+def resolve_host(host):
+    """Attempt to resolve an IP address from a host name.
+
+    Args:
+       host (string):  host string, may be IP address or host name, for which will be resolved
+
+    Returns:
+       (string): An IP address or None if a hostname cannot be resolved
+    """
+    if reip.match(host):
+        return host
+    else:
+        try:
+            return socket.gethostbyname(host)
+        except socket.gaierror as error:
+            print(f"Failed to resolve an ip address for {host} ({error.str()})")
+
+    return None
+
 def make_connection(host, user, password):
     """ Uses values in global arg_dict to open a MySql connection.
 
@@ -20,7 +44,7 @@ def make_connection(host, user, password):
     Returns:
       None
     """
-    return pymysql.connect(host = host,
+    return pymysql.connect(host = resolve_host(host),
                            user = user,
                            password = password,
                            database = "information_schema",
