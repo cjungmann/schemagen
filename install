@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+
+is_root() { [ "$USER" == "root" ]; }
+
+install_software()
+{
+    cp schemagen /usr/local/bin/schemagen
+    cp -r schemagen.d /usr/local/bin/schemagen.d
+}
+
+install_man()
+{
+    cp schemagen.1 /usr/share/man/man1/schemagen.1
+    gzip -f /usr/share/man/man1/schemagen.1
+}
+
+uninstall_software()
+{
+    rm -rf /usr/local/bin/schemagen.d
+    rm -f /usr/local/bin/schemagen
+}
+
+uninstall_man()
+{
+    rm -f /usr/share/man/man1/schemagen.1.gz
+}
+
+show_usage()
+{
+    echo "Installation tool for schemagen."
+    echo
+    echo "-i    install the software"
+    echo "-u    uninstall the software"
+    echo
+    echo "Install example:"
+    echo "   sudo install -i"
+    echo
+    echo "Uninstall example:"
+    echo "   sudo install -u"
+}
+
+
+if is_root; then
+    if [ $# -lt 1 ]; then
+        show_usage
+    elif [ "$1" == "-i" ]; then
+        install_software
+        install_man
+    elif [ "$1" == "-u" ]; then
+        uninstall_software
+    fi
+else
+    echo "You must be root to install the software."
+fi

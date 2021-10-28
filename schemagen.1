@@ -1,0 +1,111 @@
+.de dname
+. nop MariaDB/MySQL
+..
+./"
+./"
+.TH schemagen 1 "28 October 2021" "Version 0.5"
+./"
+./"
+.SH NAME
+schemagen \- Schema Script Generator
+./"
+./"
+.SH SYNOPSIS
+.BR schemagen [
+.IR options ]
+./"
+./"
+.SH DESCRIPTION
+This utility generates stored procedures code from an indicated
+.dname
+table.  The procedures are generated to conform to the recommended Schema
+Framework conventions.
+./"
+./"
+.SH OPTIONS
+.SS Generic Option
+.TP
+.BI \-h ", " \-\-help
+Quick help
+.TP
+.BI \-a ", " \-\-args
+Writes option values in a format that serves as a
+.I schemagen.cnf
+configuration file.
+.SS Connection Options
+.TP
+.BR \-H ", " \-\-host
+Address of 
+.dname
+database host
+.TP
+.BR \-u ", " \-\-user
+Account username for the
+.dname
+host. This is optional if the
+.dname
+name is the same as the OS username.
+.TP
+.BR \-p ", " \-\-password
+Account password for the
+.dname
+host.  This is optional if the
+.dname
+account has a blank password.
+.SS Domain Options
+.TP
+.BR \-d ", " \-\-database
+.dname
+database that hosts the tables and procedures.
+.TP
+.BR \-t ", " \-\-table
+.dname
+table name of the database in the host.  Although it generates no
+error, specifying a table without a database will not work.
+.SS Output Options
+.TP
+.BR \-l ", " \-\-list
+List the specified items in the existing domain (as set by the connection options).
+Allowed values are
+.IR databases ", " tables ", and " procedures .
+.I databases
+works with any connection, but 
+.IR tables " and " procedures
+must have set the
+.BR \-\-database " option."
+.TP
+.BR \-s ", " \-\-script
+Generate one or more
+.dname
+stored procedure declarations based on the
+.BR \-\-database " and " \-\-table
+options.  Allowed values are
+.IR all ", " list ", " add ", " read ", " update ", and " delete ,
+and the stored procedure script will be generated that corresponds
+to the
+.B \-\-script
+option value.
+.TP
+.BR \-i ", " \-\-items-per-line
+Maximum items per line of procedure parameters and SQL
+.I SELECT
+statement fields.  The default value is
+.I -1
+which prints as many items per line as fit within line-length
+constraints.  Other numbers will specify the maximum number of
+items per line that also fit within line-length constraints.
+For procedures that will be customized, it is often more convenient
+to specify
+.BI \-\-items-per-line 1
+in order to more easily add or remove items from the output.
+
+
+
+./"
+./"
+.SH EXAMPLES
+./"
+./"
+.SH SEE ALSO
+.TP
+.BR schema.fcgi "(7), " schemaserver ", " schemafw
