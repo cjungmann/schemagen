@@ -87,6 +87,11 @@ def prepare_argparse(parser):
     conn_group.add_argument("-t", "--table", default=def_table,
                         help="name of MariaDB table to use")
 
+    # Input Tweaks
+    tweaks_group = parser.add_argument_group("Input Tweaks")
+    tweaks_group.add_argument("-c", "--confirm_fields",
+                              help="Comma-separated confirmation fields for update or delete")
+
     # Output Types
     type_group = parser.add_argument_group("Output Types")
     type_group.add_argument("-a", "--args", action="store_true",
@@ -102,7 +107,7 @@ def prepare_argparse(parser):
                         help="Stored procedure name prefix that precedes the procedure type.")
     strings_group.add_argument("-D", "--delimiter", default="$$",
                         help="Delimiter to indicate the end of CREATE PROCEDURE statements.")
-    
+
     # Output Formatting
     format_group = parser.add_argument_group("Output Formatting")
     format_group.add_argument("-I", "--indent-chars", type=int, default=4,
@@ -111,7 +116,6 @@ def prepare_argparse(parser):
                         help="maximum items per line of parameters or fields, -1 for unlimited")
     format_group.add_argument("-m", "--max-chars", type=int ,default=80,
                         help="maximum characters per line")
-    
 
 
 def make_connection(args):
@@ -155,6 +159,27 @@ def show_list_of_items(conn, database, list_type):
         for name in ilist:
             print(name)
 
+def get_requested_table_columns(table_columns, field_names):
+    """Get a list of column objects from `table_fields` that match names in `confirm_fields`
+    Args:
+       table_columns (list of dicts): List of column dictionaries from a table
+       field_names (string):          Comma-separated list of field names
+
+    Returns:
+       (list of dicts): subset of `table_fields` whose names are found in `field_names`
+                        which might be an empty list
+    """
+    columns_list = []
+    if field_names is not None:
+        requested_field_names = field_names.split(',')
+        for field_name in requested_field_names:
+            found_column = sgdb.get_table_column_by_name(table_columns,
+                                                         field_name.strip())
+            if found_column:
+                columns_list.append(found_column)
+
+    return columns_list
+
 def produce_script_from_table(conn, args):
     """Generate requested scripts
     Args:
@@ -184,8 +209,11 @@ def produce_script_from_table(conn, args):
                           printer_limit=max_chars,
                           printer_items_per_line=items_per_line)
 
-    gen_map = scripter.get_calling_dictionary(table, proc_prefix)
     table_fields = sgdb.collect_table_columns(conn, database, table)
+
+    confirm_fields = get_requested_table_columns(table_fields, args["confirm_fields"])
+
+    gen_map = scripter.get_calling_dictionary(table, proc_prefix, confirm_fields)
 
     if script_type == "all":
         for fargs in gen_map.values():
