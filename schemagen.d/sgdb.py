@@ -2,13 +2,13 @@
 
 """This module includes several functions for accessing MySQL/MariaDB."""
 
-import pymysql
-import pymysql.cursors
-
 import re
 import socket   # For resolving host names
 
-reip = re.compile("\d{1,3}(\.\d{1,3}){3}")
+import pymysql
+import pymysql.cursors
+
+reip = re.compile("\\d{1,3}(\\.\\d{1,3}){3}")
 
 def resolve_host(host):
     """Attempt to resolve an IP address from a host name.
@@ -21,11 +21,11 @@ def resolve_host(host):
     """
     if reip.match(host):
         return host
-    else:
-        try:
-            return socket.gethostbyname(host)
-        except socket.gaierror as error:
-            print(f"Failed to resolve an ip address for {host} ({error.str()})")
+
+    try:
+        return socket.gethostbyname(host)
+    except socket.gaierror as error:
+        print(f"Failed to resolve an ip address for {host} ({error.str()})")
 
     return None
 
@@ -106,7 +106,7 @@ SELECT ROUTINE_NAME
  WHERE ROUTINE_SCHEMA = '{}' """
 
     return qtemplate.format(database)
-    
+
 
 def collect_table_columns(conn, database, table):
     """ Collect table fields into a reusable structure.
@@ -133,6 +133,24 @@ def collect_table_columns(conn, database, table):
         print(f"Unexpected {err=}, {type(err)=}")
         raise
 
+def get_table_column_by_name(table_columns_list, column_name):
+    """Seeks by name a table column from a list
+
+    Args:
+       table_columns_list (list): Output from function collect_table_columns()
+       column_name (string):      Name of column to find
+
+    Returns:
+       (dictionary): The column dictionary for the matched column,
+                     or None if the column isn't found
+    """
+    for column in table_columns_list:
+        if column["COLUMN_NAME"] == column_name:
+            return column
+
+    return None
+
+
 def get_list_of_table_names(conn, database):
     """ Returns a list of tables for given database.
 
@@ -144,20 +162,20 @@ def get_list_of_table_names(conn, database):
        list of table names
     """
     query = prep_query_tables_list(database)
-    list = None
+    table_name_list = None
     try:
         with conn.cursor() as cur:
             cur.execute(query)
-            list = []
+            table_name_list = []
             rows = cur.fetchall()
             for row in rows:
-                list.append(row["TABLE_NAME"])
+                table_name_list.append(row["TABLE_NAME"])
 
     except BaseException as err:
         print(f"Unexpected {err=}, {type(err)=}")
         raise
 
-    return list
+    return table_name_list
 
 def get_list_of_procedure_names(conn, database):
     """Returns a list of procedures for given database.
@@ -169,22 +187,22 @@ def get_list_of_procedure_names(conn, database):
     Returns:
        list of procedure names
     """
-    print("[32;1mProcedures in database '{}'[m".format(database) )
-    list = None
+    print(f"[32;1mProcedures in database '{database}'[m" )
+    proc_name_list = None
     query = prep_query_procedures_list(database)
     try:
         with conn.cursor() as cur:
             cur.execute(query)
-            list = []
+            proc_name_list = []
             rows = cur.fetchall()
             for row in rows:
-                list.append(row["ROUTINE_NAME"])
+                proc_name_list.append(row["ROUTINE_NAME"])
 
     except BaseException as err:
         print(f"Unexpected {err=}, {type(err)=}")
         raise
 
-    return list
+    return proc_name_list
 
 def get_list_of_database_names(conn):
     """ Returns a list of database names for the connection's host
@@ -194,18 +212,18 @@ def get_list_of_database_names(conn):
     Returns:
        list of database names
     """
-    list = None
+    dbase_name_list = None
     query = "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA"
     try:
         with conn.cursor() as cur:
             cur.execute(query)
-            list = []
+            dbase_name_list = []
             rows = cur.fetchall()
             for row in rows:
-                list.append(row["SCHEMA_NAME"])
+                dbase_name_list.append(row["SCHEMA_NAME"])
 
     except BaseException as err:
         print(f"Unexpected {err=}, {type(err)=}")
         raise
 
-    return list
+    return dbase_name_list
