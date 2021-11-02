@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS Person (
 CREATE TABLE IF NOT EXISTS AllTypes (
    id             INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
    title          ENUM('Mr', 'Mrs', 'Ms', 'Dr', 'Dame', 'Sir'),
-   name           VARCHAR(80),
+   name           VARCHAR(80) NOT NULL,
    wage           DECIMAL(10,2),
    empid          CHAR(6),
    family_members TINYINT,
