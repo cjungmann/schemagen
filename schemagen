@@ -212,6 +212,7 @@ def produce_script_from_table(conn, args):
     table_fields = sgdb.collect_table_columns(conn, database, table)
 
     confirm_fields = get_requested_table_columns(table_fields, args["confirm_fields"])
+    confirm_fields = sgdb.prune_confirm_field_list(table_fields, confirm_fields)
 
     gen_map = scripter.get_calling_dictionary(table, proc_prefix, confirm_fields)
 
