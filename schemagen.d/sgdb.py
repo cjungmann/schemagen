@@ -151,6 +151,17 @@ def get_table_column_by_name(table_columns_list, column_name):
     return None
 
 
+def prune_confirm_field_list(fields, confirm_fields):
+    """Return a list of confirm fields with appropriate names."""
+    pruned_list = []
+    for confirm_field in confirm_fields:
+        if confirm_field in fields:
+            confirm_field = confirm_field.copy()
+            confirm_field["COLUMN_NAME"] = "confirm_" + confirm_field["COLUMN_NAME"]
+            pruned_list.append(confirm_field)
+
+    return pruned_list
+
 def get_list_of_table_names(conn, database):
     """ Returns a list of tables for given database.
 
