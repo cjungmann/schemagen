@@ -31,13 +31,15 @@ Framework conventions.
 Address of 
 .dname
 database host.  This can be in dotted-decimal format or a host name.
+If this option is omitted, the program will attempt to connect to
+.IR localhost .
 .TP
 .BR \-u ", " \-\-user
 Account username for the
 .dname
 host. This is optional if the
-.dname
-name is the same as the OS username.
+.B \-\-user
+value would be the same as the OS username.
 .TP
 .BR \-p ", " \-\-password
 Account password for the
