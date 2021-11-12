@@ -38,8 +38,14 @@ def get_cnf_values():
        (dictionary): key/value pairs found in schemagen.cnf file
     """
     cnfdict = None
+
+    # Look for config file in multiple places
+    fpath = "./schemagen.cnf"
+    if not os.path.exists(fpath):
+        fpath = os.path.expanduser("~") + "/.schemagen.cnf"
+        
     try:
-        with open("./schemagen.cnf", mode="rt", encoding="ascii") as cnf:
+        with open(fpath, mode="rt", encoding="ascii") as cnf:
             cnfdict = {}
             lines = cnf.readlines()
             for line in lines:
@@ -47,6 +53,7 @@ def get_cnf_values():
                     keyval = line.rstrip("\r\n").split('=', maxsplit=1)
                     if len(keyval) == 2:
                         cnfdict[keyval[0]] = keyval[1]
+
     except OSError:
         pass
 
