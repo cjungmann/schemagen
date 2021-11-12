@@ -71,7 +71,10 @@ Writes option values in a format that serves as a
 .I schemagen.cnf
 configuration file.  With a configuration file in the local directory, the values
 contained therein will be used as default option values.  This option can also be
-used to view the current option values.
+used to view the current option values.  This option will only run if the program
+can successfully make a database connection, so you may need to set the
+.BR \-\-host " and/or " \-\-user
+options to create the connection.
 .TP
 .BR \-l ", " \-\-list
 List the specified items in the existing domain (as set by the connection options).
@@ -87,7 +90,7 @@ The
 option lists the fields of a table and only works if the
 .BR \-\-database " and " \-\-table
 options have been set.
-.\"
+<.\"
 .TP
 .BR \-s ", " \-\-script
 Generate one or more
@@ -132,6 +135,18 @@ Maximum number of characters per line.
 
 .SH NOTES
 .SS Using schemagen.cnf
+The program will attempt to read
+.I schemagen.cnf
+in the current directory or if that is not found,
+.I ~/.schemagen.cnf
+in your home directory.
+
+Consider security if you include a password in the
+.I schemagen.cnf
+file.  For a password-enabled configuration file, it is recommended that
+the file be placed in the home directory, hidden with a period prefix, and
+with the mode set so only the user can read it.
+
 Putting commonly-used connection values into a configuration file
 can make it easier to user the
 .B schemagen
@@ -178,7 +193,17 @@ Adjust output to create template with one-per-line parameters
 \*[aang] \fB-t\fI Avatars \fB-s \fIall \fB-i \fI1\fR
 .RE
 
-Create a schemagen.cnf file
+Create a schemagen.cnf file, first without a password in working directory:
+.RS
+\fBschemagen -H \fI192.168.0.20\fB -u \fIAang\fB -d\fR AirNation\fB --args\fR > schemagen.cnf
+.RE
+or hidden and protected with password in the home directory:
+.RS
+touch ~/.schemagen.cnf
+.RE
+.RS
+chmod 0600 ~/.schemagen.cnf
+.RE
 .RS
 \*[aang] \fB--args\fR > schemagen.cnf
 .RE
