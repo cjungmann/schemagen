@@ -8,6 +8,7 @@ the Schema Framework.
 
 import os
 import sys
+import getpass   # for getting the username
 
 # The following code causes a pylint error without cause,
 # so I'm preventing the errors/warnings here:
@@ -75,7 +76,7 @@ def prepare_argparse(parser):
     script_choices=[ "all", "list", "add", "read", "update", "delete" ]
 
     def_host = 'localhost'
-    def_user = os.getusername()
+    def_user = getpass.getuser()
     def_password = None
     def_database = None
     def_table = None
