@@ -4,6 +4,7 @@
 
 import re
 import socket   # For resolving host names
+import sys      # to direct error output to sys.stderr
 
 import pymysql
 import pymysql.cursors
@@ -44,11 +45,18 @@ def make_connection(host, user, password):
     Returns:
       None
     """
-    return pymysql.connect(host = resolve_host(host),
-                           user = user,
-                           password = password,
-                           database = "information_schema",
-                           cursorclass = pymysql.cursors.DictCursor)
+    try:
+        return pymysql.connect(host = resolve_host(host),
+                               user = user,
+                               password = password,
+                               database = "information_schema",
+                               cursorclass = pymysql.cursors.DictCursor)
+
+    except pymysql.Error as e:
+        print(f"Failed to make a connection to {host}, {e.args}", file=sys.stderr)
+        return None
+        
+
 
 def prep_query_table_columns(database, table):
     """ Generates an SQL expression for collecting table field data.
