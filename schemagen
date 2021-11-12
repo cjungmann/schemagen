@@ -74,8 +74,8 @@ def prepare_argparse(parser):
 
     script_choices=[ "all", "list", "add", "read", "update", "delete" ]
 
-    def_host = None
-    def_user = None
+    def_host = 'localhost'
+    def_user = os.getusername()
     def_password = None
     def_database = None
     def_table = None
