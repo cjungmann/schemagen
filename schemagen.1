@@ -76,12 +76,18 @@ used to view the current option values.
 .BR \-l ", " \-\-list
 List the specified items in the existing domain (as set by the connection options).
 Allowed values are
-.IR databases ", " tables ", and " procedures .
+.IR databases ", " tables ", " procedures ", and " fields.
 .I databases
 works with any connection, but 
 .IR tables " and " procedures
 must have set the
 .BR \-\-database " option."
+The
+.I fields
+option lists the fields of a table and only works if the
+.BR \-\-database " and " \-\-table
+options have been set.
+.\"
 .TP
 .BR \-s ", " \-\-script
 Generate one or more
