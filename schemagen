@@ -291,8 +291,7 @@ def main():
                 use_connection(conn, args)
 
             conn.close()
-        else:
-            print("failed to get a connection.")
+        # connection error message will be reported in make_connection()
 
 if __name__ == "__main__":
     main()
