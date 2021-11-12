@@ -5,7 +5,7 @@ is_root() { [ "$USER" == "root" ]; }
 install_software()
 {
     cp schemagen /usr/local/bin/schemagen
-    cp -r schemagen.d /usr/local/bin/schemagen.d
+    cp -t /usr/local/bin/schemagen.d schemagen.d/*.py
 }
 
 install_man()
