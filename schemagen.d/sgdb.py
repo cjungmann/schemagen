@@ -215,6 +215,34 @@ def get_list_of_procedure_names(conn, database):
 
     return proc_name_list
 
+def get_list_of_table_fields(conn, database, table):
+    """Returns a list of field names for the given table.
+
+    Arg:
+       conn (object):     open mysql connection
+       database (string): name of database
+       table (string):    name of table
+
+    Returns:
+       list of column names
+    """
+    print(f"[32;1mFields in table '{table}' in database '{database}'[m" )
+    field_name_list = None
+    query = prep_query_table_columns(database, table)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(query)
+            field_name_list = []
+            rows = cur.fetchall()
+            for row in rows:
+                field_name_list.append(row["COLUMN_NAME"])
+
+    except BaseException as err:
+        print(f"Unexpected {err=}, {type(err)=}")
+        raise
+
+    return field_name_list
+
 def get_list_of_database_names(conn):
     """ Returns a list of database names for the connection's host
     Args:
