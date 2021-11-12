@@ -210,7 +210,7 @@ class SGScripter:
                                  self.printer_limit,
                                  items_per_line = self.printer_items_per_line)
 
-        printer.print(items)
+        printer.print(items, end="")
         print(end, end="")
 
     def print_list_sets(self, indent_len, fields, prefix='', end='\n'):
@@ -225,7 +225,7 @@ class SGScripter:
                                  self.printer_limit,
                                  items_per_line = self.printer_items_per_line)
 
-        printer.print(items)
+        printer.print(items, end="")
         print(end, end="")
 
     def print_proc_params(self, indent_len, fields):
@@ -242,7 +242,7 @@ class SGScripter:
                                  self.printer_limit,
                                  items_per_line = self.printer_items_per_line)
 
-        printer.print(items)
+        printer.print(items, end="")
         print(")")
 
     def print_proc_list(self, fields, table_name, proc_name):
