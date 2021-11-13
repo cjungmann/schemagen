@@ -8,7 +8,8 @@ the Schema Framework.
 
 import os
 import sys
-import getpass   # for getting the username
+import getpass                 # for getting the username
+from datetime import datetime  # for printing script-generation date
 
 # The following code causes a pylint error without cause,
 # so I'm preventing the errors/warnings here:
@@ -31,7 +32,9 @@ from   sgscripts import SGScripter
 
 
 def get_cnf_values():
-    """Get default option values from configuration file, schemagen.cnf, if it exists.
+    """Get default option values from configuration file, schemagen.cnf,
+    if it exists.
+
     Args:
        None
 
@@ -44,7 +47,7 @@ def get_cnf_values():
     fpath = "./schemagen.cnf"
     if not os.path.exists(fpath):
         fpath = os.path.expanduser("~") + "/.schemagen.cnf"
-        
+
     try:
         with open(fpath, mode="rt", encoding="ascii") as cnf:
             cnfdict = {}
@@ -235,6 +238,8 @@ def produce_script_from_table(conn, args):
 
     gen_map = scripter.get_calling_dictionary(table, proc_prefix, confirm_fields)
 
+    print(f"-- schemagen-generated script, {datetime.now()}", end="\n\n")
+
     if script_type == "all":
         for fargs in gen_map.values():
             print("-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --")
@@ -275,7 +280,8 @@ def use_connection(conn, args):
 
 def main():
     """ Application entry point """
-    parser = argparse.ArgumentParser(prog="schemagen", description="Schema Framework Code Generator")
+    parser = argparse.ArgumentParser(prog="schemagen",
+                                     description="Schema Framework Code Generator")
     prepare_argparse(parser)
 
     if len(sys.argv) < 2:
@@ -291,7 +297,9 @@ def main():
                 use_connection(conn, args)
 
             conn.close()
-        # connection error message will be reported in make_connection()
+        elif args["args"]:
+            print("\nThe following connection values in force for failed connection:")
+            display_cnf_from_args(args)
 
 if __name__ == "__main__":
     main()
