@@ -52,10 +52,9 @@ def make_connection(host, user, password):
                                database = "information_schema",
                                cursorclass = pymysql.cursors.DictCursor)
 
-    except pymysql.Error as e:
-        print(f"Failed to make a connection to {host}, {e.args}", file=sys.stderr)
+    except pymysql.Error as err:
+        print(f"Failed to make a connection to {host}, {err.args}", file=sys.stderr)
         return None
-        
 
 
 def prep_query_table_columns(database, table):
