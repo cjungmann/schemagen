@@ -46,20 +46,20 @@ def field_is_autonumber_primary_key(field):
     return (field_is_primary_key(field)
             and field_is_auto_increment(field))
 
-def get_autonumber_primary_key(fields):
+def get_primary_key(fields):
     """ Find the integer primary key field for a list of fields.
     """
     for field in fields:
-        if field_is_autonumber_primary_key(field):
+        if field_is_primary_key(field):
             return field
 
     return None
 
-def get_field_list_without_autonumber_primary_fields(fields):
-    """Return a sublist of fields that does not include autonumber primary key fields."""
+def get_field_list_without_primary_fields(fields):
+    """Return a sublist of fields that does not include primary key fields."""
     new_fields = []
     for field in fields:
-        if not field_is_autonumber_primary_key(field):
+        if not field_is_primary_key(field):
             new_fields.append(field)
 
     return new_fields
@@ -217,7 +217,7 @@ class SGScripter:
         """Print the contents of a set data field."""
         items = []
         for field in fields:
-            if not field_is_autonumber_primary_key(field):
+            if not field_is_primary_key(field):
                 field_name = field["COLUMN_NAME"]
                 items.append(f"{prefix}{field_name} = {field_name}")
 
@@ -232,7 +232,7 @@ class SGScripter:
         """Print parameter list (field name + type info) for stored procedure declaration."""
         items = []
         for field in fields:
-            keep_not_null = not field_is_autonumber_primary_key(field)
+            keep_not_null = not field_is_primary_key(field)
 
             param_type = get_type_string_from_field(field, keep_not_null=keep_not_null)
             item = f"{field['COLUMN_NAME']} {param_type}"
@@ -247,7 +247,7 @@ class SGScripter:
 
     def print_proc_list(self, fields, table_name, proc_name):
         """Print the stored procedure code for a LIST operation."""
-        autonumber_field = get_autonumber_primary_key(fields)
+        autonumber_field = get_primary_key(fields)
 
         if autonumber_field is None:
             print("-- Can't generate list procedure without autonumber primary key field.")
@@ -304,9 +304,16 @@ class SGScripter:
 
         tab1 = ' ' * self.tabstop
 
+        # Confirm appropriate table fields for this type of procedure:
+        prikey = get_primary_key(fields)
+        if not prikey or not field_is_auto_increment(prikey):
+            print("-- Can't generate add procedure without self-generating"
+                  "(autonumber) primary key field.")
+            return
+
         # Print procedure declaration
         params_indent_len = self.print_proc_top(proc_name)
-        add_fields = get_field_list_without_autonumber_primary_fields(fields)
+        add_fields = get_field_list_without_primary_fields(fields)
         self.print_proc_params(params_indent_len, add_fields)
         print("BEGIN")
 
@@ -330,7 +337,7 @@ class SGScripter:
 
     def print_proc_read(self, fields, table_name, proc_name, confirm_fields):
         """Print stored procedure code to a READ operation."""
-        autonumber_field = get_autonumber_primary_key(fields)
+        autonumber_field = get_primary_key(fields)
 
         if autonumber_field is None:
             print("-- Can't generate read procedure without autonumber primary key field.")
@@ -371,7 +378,7 @@ class SGScripter:
     def print_proc_update(self, fields, table_name, proc_name,
                           confirm_proc_name, confirm_fields):
         """Print the stored procedure code for an UPDATE operation."""
-        autonumber_field = get_autonumber_primary_key(fields)
+        autonumber_field = get_primary_key(fields)
 
         if autonumber_field is None:
             print("-- Can't generate update procedure without autonumber primary key field.")
@@ -417,7 +424,7 @@ class SGScripter:
 
     def print_proc_delete(self, fields, table_name, proc_name, confirm_fields):
         """Print the stored procedure code for a DELETE operation."""
-        autonumber_field = get_autonumber_primary_key(fields)
+        autonumber_field = get_primary_key(fields)
 
         if autonumber_field is None:
             print("-- Can't generate update procedure without autonumber primary key field.")
