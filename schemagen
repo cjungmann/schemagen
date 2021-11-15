@@ -238,7 +238,7 @@ def produce_script_from_table(conn, args):
 
     gen_map = scripter.get_calling_dictionary(table, proc_prefix, confirm_fields)
 
-    print(f"-- schemagen-generated script, {datetime.now()}", end="\n\n")
+    print(f"-- {datetime.now()} schemagen-generated script, database={database}", end="\n\n")
 
     if script_type == "all":
         for fargs in gen_map.values():
