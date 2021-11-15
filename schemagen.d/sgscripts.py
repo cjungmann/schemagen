@@ -231,9 +231,9 @@ class SGScripter:
     def print_proc_params(self, indent_len, fields):
         """Print parameter list (field name + type info) for stored procedure declaration."""
         items = []
+
         for field in fields:
             keep_not_null = not field_is_primary_key(field)
-
             param_type = get_type_string_from_field(field, keep_not_null=keep_not_null)
             item = f"{field['COLUMN_NAME']} {param_type}"
             items.append(item)
@@ -257,7 +257,7 @@ class SGScripter:
 
             autonumber_list = [ autonumber_field ]
             autonumber_name = autonumber_field["COLUMN_NAME"]
-            table_alias = table_name[0:1]
+            table_alias = table_name[0:1].lower()
             table_prefix = table_alias + "."
 
             # Print procedure declaration
@@ -347,19 +347,20 @@ class SGScripter:
 
             autonumber_list = [ autonumber_field ]
             autonumber_name = autonumber_field["COLUMN_NAME"]
-            table_alias = table_name[0:1]
+            table_alias = table_name[0:1].lower()
             table_prefix = table_alias + "."
 
             params_indent_len = self.print_proc_top(proc_name)
-            self.print_proc_params(params_indent_len, autonumber_list)
+            self.print_proc_params(params_indent_len, autonumber_list + confirm_fields)
             print("BEGIN")
 
             select_string = tab1 + "SELECT ("
             select_indent_len = len(select_string)
             print(select_string, end='')
 
-            select_list = fields.copy()
+            select_list = fields[:]
             select_list[1:1] = confirm_fields
+
             self.print_list_param_names(select_indent_len,
                                         select_list,
                                         prefix=table_prefix,
@@ -371,7 +372,12 @@ class SGScripter:
 
             print_to_indent(select_indent_len,
                             "WHERE ",
-                            end = f"{table_prefix}{autonumber_name} = {autonumber_name};\n")
+                            end = f"{table_prefix}{autonumber_name} = {autonumber_name}")
+
+            if len(confirm_fields) > 0:
+                print_proc_and_confirm_fields(select_indent_len, table_prefix, confirm_fields)
+
+            print(";")
 
             print("END " + self.delimiter)
 
@@ -387,17 +393,19 @@ class SGScripter:
             tab1 = ' ' * self.tabstop
 
             autonumber_name = autonumber_field["COLUMN_NAME"]
-            table_alias = table_name[0:1]
+            table_alias = table_name[0:1].lower()
             table_prefix = table_alias + "."
 
+            param_fields = fields[:]
+            param_fields[1:1] = confirm_fields
+
             params_indent_len = self.print_proc_top(proc_name)
-            self.print_proc_params(params_indent_len, fields)
+            self.print_proc_params(params_indent_len, param_fields)
             print("BEGIN")
 
             update_string = tab1 + "UPDATE "
-            update_table = table_name + " " + table_alias
             fields_indent_len = len(update_string)
-            print(update_string, end=update_table + "\n")
+            print(update_string, end=table_name + " " + table_alias + "\n")
 
             # SETs
             print_to_indent(fields_indent_len, "SET ", end="")
@@ -435,7 +443,7 @@ class SGScripter:
             param_fields = [autonumber_field] + confirm_fields
 
             autonumber_name = autonumber_field["COLUMN_NAME"]
-            table_alias = table_name[0:1]
+            table_alias = table_name[0:1].lower()
             table_prefix = table_alias + "."
 
             params_indent_len = self.print_proc_top(proc_name)
